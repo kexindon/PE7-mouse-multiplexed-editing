@@ -1,0 +1,15 @@
+# Large PEGG outputs — too big for GitHub (100MB limit)
+data/pegRNAs_full_filtered.csv
+data/pegg_chunks/
+data/pegRNAs_yale.csv
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
