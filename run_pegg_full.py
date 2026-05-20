@@ -20,7 +20,7 @@ from pegg import prime
 CHUNK_SIZE = 5000
 OUT_DIR = 'data/pegg_chunks'
 INPUT_FORMAT = 'cBioPortal'
-PAM = 'NGN'
+PAM = 'NGG'
 PBS_LENGTHS = [7]
 RTT_LENGTHS = [15]
 
@@ -119,11 +119,17 @@ def main():
     log(f'  Rows from H2M matching modelable variants: {len(h2m_mouse_for_pegg):,}')
 
     pegg_input = h2m_mouse_for_pegg.copy()
+
+    # Drop rows where mouse coords are missing (h2m_status=False / no homolog)
+    before = len(pegg_input)
+    pegg_input = pegg_input.dropna(subset=['start_m', 'end_m', 'chr_m', 'type_m']).reset_index(drop=True)
+    log(f'  Rows after dropping missing mouse coords: {len(pegg_input):,} (dropped {before-len(pegg_input):,})')
+
     pegg_input['Start_Position'] = pegg_input['start_m'].astype(int)
     pegg_input['End_Position'] = pegg_input['end_m'].astype(int)
     pegg_input['Variant_Type'] = pegg_input['type_m']
-    pegg_input['Reference_Allele'] = pegg_input['ref_seq_m']
-    pegg_input['Tumor_Seq_Allele2'] = pegg_input['alt_seq_m']
+    pegg_input['Reference_Allele'] = pegg_input['ref_seq_m'].fillna('-')   # INS edge cases have NaN ref
+    pegg_input['Tumor_Seq_Allele2'] = pegg_input['alt_seq_m'].fillna('-')  # DEL has '-' alt; safety net
     pegg_input['Chromosome'] = pegg_input['chr_m'].str.replace('chr', '', regex=False)
 
     # Map MAF variant types -> PEGG vocabulary
