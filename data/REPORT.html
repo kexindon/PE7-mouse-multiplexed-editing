@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEMM Cancer Alleles Search — Technical Report</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a2e;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --border: #e5e7eb;
+    --code-bg: #f8f9fa;
+    --code-border: #e2e8f0;
+    --table-header: #f1f5f9;
+    --shadow: rgba(0,0,0,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    line-height: 1.7;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+  h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    color: var(--fg);
+  }
+  h1 + p.subtitle {
+    color: #6b7280;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border);
+  }
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 2.5rem;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg);
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.8rem;
+    margin-bottom: 0.5rem;
+  }
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.4rem;
+    margin-bottom: 0.4rem;
+    color: #374151;
+  }
+  p { margin-bottom: 0.9rem; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr {
+    border: none;
+    border-top: 2px solid var(--border);
+    margin: 2rem 0;
+  }
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85em;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 4px;
+    padding: 0.15em 0.35em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    margin: 0.8rem 0 1.2rem;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+  }
+  .comment { color: #6b7280; font-style: italic; }
+  .keyword { color: #7c3aed; font-weight: 500; }
+  .string { color: #059669; }
+  .function { color: #2563eb; }
+  .number { color: #d97706; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8rem 0 1.2rem;
+    font-size: 0.88rem;
+  }
+  th {
+    background: var(--table-header);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border);
+  }
+  td {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #fafbfc; }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-light);
+    padding: 0.7rem 1rem;
+    margin: 0.8rem 0 1.2rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.92rem;
+  }
+  blockquote p { margin-bottom: 0; }
+  .step-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15em 0.6em;
+    border-radius: 4px;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .pipeline-arrow {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #9ca3af;
+    margin: 0.3rem 0;
+  }
+  .summary-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+  }
+  .warning-box {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+  }
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+  li { margin-bottom: 0.3rem; }
+  .toc { margin: 1rem 0 2rem; }
+  .toc ul { list-style: none; margin-left: 0; }
+  .toc li { margin-bottom: 0.25rem; }
+  .toc a { font-size: 0.92rem; }
+</style>
+</head>
+<body>
+
+<h1>GEMM Cancer Alleles Search</h1>
+<p class="subtitle">Technical Report &mdash; Pipeline Documentation &amp; Annotated Code</p>
+
+<nav class="toc">
+<strong>Contents</strong>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#sources">Data Sources</a></li>
+<li><a href="#step1">Step 1: Retrieve cancer models from MMHCdb</a></li>
+<li><a href="#step2">Step 2: Download MGI bulk reference data</a></li>
+<li><a href="#step3">Step 3: Query MGI allele pages for specific mutations</a></li>
+<li><a href="#step4">Step 4: Assign allele labels &amp; map to human equivalents</a></li>
+<li><a href="#step5">Step 5: Deduplicate to unique alleles</a></li>
+<li><a href="#step6">Step 6: Clean-up filters</a></li>
+<li><a href="#output">Final Output Summary</a></li>
+<li><a href="#limitations">Limitations</a></li>
+</ul>
+</nav>
+
+<hr>
+
+<h2 id="overview">Overview</h2>
+<p>This report documents the step-by-step pipeline used to compile a list of genetically engineered mouse model (GEMM) alleles that model human cancer-relevant mutations. The final output is a deduplicated spreadsheet where each row represents a unique mutant allele, resolved to the specific engineered mutation (e.g., <code>Kras_G12D</code> rather than just <code>Kras</code>).</p>
+
+<hr>
+
+<h2 id="sources">Data Sources</h2>
+
+<h3>Primary: MMHCdb (Mouse Models of Human Cancer database)</h3>
+<table>
+<tr><th>Property</th><th>Detail</th></tr>
+<tr><td>URL</td><td><code>https://tumor.informatics.jax.org</code></td></tr>
+<tr><td>Maintained by</td><td>The Jackson Laboratory</td></tr>
+<tr><td>Contains</td><td>45,001 mutant cancer model records</td></tr>
+<tr><td>Access method</td><td>Solr search backend via HTTP POST to <code>/mtbwi/solrQuery.do</code></td></tr>
+</table>
+<p>MMHCdb was chosen as the primary source because it is the most comprehensive curated database of mouse cancer models. Its Solr backend was reverse-engineered from the faceted search JavaScript (<code>facet.js</code>) to enable programmatic batch queries.</p>
+
+<h3>Secondary: MGI (Mouse Genome Informatics)</h3>
+<table>
+<tr><th>Property</th><th>Detail</th></tr>
+<tr><td>URL</td><td><code>https://www.informatics.jax.org</code></td></tr>
+<tr><td>Maintained by</td><td>The Jackson Laboratory</td></tr>
+<tr><td>Used for</td><td>Orthology (20,181 pairs), Disease Ontology (327 cancer genes), Allele metadata (129,000 alleles), Mutation descriptions (1,289 pages)</td></tr>
+</table>
+
+<div class="warning-box">
+<strong>GMMID not used:</strong> GMMID (<code>gmmid.cn</code>) was the requested primary source but was offline at the time of data collection and does not offer an API or bulk download.
+</div>
+
+<hr>
+
+<h2 id="step1"><span class="step-badge">STEP 1</span> Retrieve All Mutant Cancer Models from MMHCdb</h2>
+
+<p>MMHCdb's web interface uses a Solr search backend. The search page at <code>/mtbwi/facetedSearch.do</code> loads a JavaScript file (<code>facet.js</code>) that constructs queries to <code>/mtbwi/solrQuery.do</code>. By reverse-engineering this, we query the database programmatically.</p>
+
+<p><strong>Key discovery:</strong> The Solr endpoint only returns JSON via HTTP POST. GET requests return an HTML &ldquo;Processing&rdquo; wait page.</p>
+
+<pre><code><span class="keyword">def</span> <span class="function">fetch_mmhcdb</span>():
+    session = requests.Session()
+
+    <span class="comment"># Load the search page first to establish a session cookie (JSESSIONID).</span>
+    <span class="comment"># Without this, the Solr endpoint rejects requests.</span>
+    session.get(f<span class="string">"{MMHCDB_URL}/facetedSearch.do"</span>, timeout=<span class="number">30</span>)
+
+    <span class="comment"># Query parameters for the Solr backend:</span>
+    <span class="comment">#   wt=json        &rarr; return JSON (not XML)</span>
+    <span class="comment">#   q=*:*          &rarr; match all documents</span>
+    <span class="comment">#   fq=mutant:true &rarr; filter to only genetically modified strains</span>
+    <span class="comment">#                      (excludes wild-type tumor frequency records)</span>
+    <span class="comment">#   facet=false    &rarr; skip facet counts, just return documents</span>
+    params = {
+        <span class="string">"wt"</span>: <span class="string">"json"</span>, <span class="string">"q"</span>: <span class="string">"*:*"</span>, <span class="string">"fq"</span>: <span class="string">"mutant:true"</span>,
+        <span class="string">"rows"</span>: <span class="number">0</span>, <span class="string">"start"</span>: <span class="number">0</span>, <span class="string">"facet"</span>: <span class="string">"false"</span>,
+    }
+
+    <span class="comment"># First request with rows=0 to get the total count without data</span>
+    r = session.post(f<span class="string">"{MMHCDB_URL}/solrQuery.do"</span>, data=params, timeout=<span class="number">60</span>)
+    total = json.loads(r.text)[<span class="string">"response"</span>][<span class="string">"numFound"</span>]
+    <span class="comment"># Result: 45,001 records</span>
+
+    <span class="comment"># Paginate through all records in batches of 500</span>
+    all_docs = []
+    <span class="keyword">for</span> start <span class="keyword">in</span> range(<span class="number">0</span>, total, BATCH_SIZE):
+        params[<span class="string">"rows"</span>] = BATCH_SIZE
+        params[<span class="string">"start"</span>] = start
+        r = session.post(f<span class="string">"{MMHCDB_URL}/solrQuery.do"</span>, data=params, timeout=<span class="number">120</span>)
+        docs = json.loads(r.text)[<span class="string">"response"</span>][<span class="string">"docs"</span>]
+        all_docs.extend(docs)
+        time.sleep(<span class="number">0.3</span>)  <span class="comment"># rate limiting</span>
+
+    <span class="keyword">return</span> all_docs</code></pre>
+
+<h4>What each MMHCdb record contains</h4>
+<table>
+<tr><th>Field</th><th>Example</th><th>Description</th></tr>
+<tr><td><code>strain</code></td><td><code>C57BL/6-Kras&lt;tm4Tyj&gt;</code></td><td>Full strain name with HTML markup</td></tr>
+<tr><td><code>strainMarker</code></td><td><code>['Kras', 'Kras&lt;sup&gt;tm4Tyj&lt;/sup&gt;', ...]</code></td><td>Gene names and allele notations</td></tr>
+<tr><td><code>strainMutationType</code></td><td><code>['Targeted mutation (knock-in)']</code></td><td>How the allele was engineered</td></tr>
+<tr><td><code>tumorClassification</code></td><td><code>adenocarcinoma</code></td><td>Tumor type observed</td></tr>
+<tr><td><code>organAffected</code></td><td><code>Lung</code></td><td>Mouse organ</td></tr>
+<tr><td><code>humanTissue</code></td><td><code>['Lung']</code></td><td>Corresponding human cancer site</td></tr>
+<tr><td><code>citation</code></td><td><code>['DuPage M, Nat Protoc (2009)']</code></td><td>Publication</td></tr>
+<tr><td><code>referenceID</code></td><td><code>['19798082']</code></td><td>PubMed ID</td></tr>
+</table>
+
+<h4>Allele extraction from markers</h4>
+<p>The <code>strainMarker</code> list mixes gene names, gene descriptions, and allele symbols. Allele symbols follow the pattern <code>Gene&lt;sup&gt;allele_label&lt;/sup&gt;</code>. A regex extracts these:</p>
+
+<pre><code><span class="keyword">def</span> <span class="function">extract_alleles_from_markers</span>(marker_list):
+    alleles = []
+    <span class="keyword">for</span> item <span class="keyword">in</span> marker_list:
+        <span class="comment"># Match pattern like "Kras&lt;sup&gt;tm4Tyj&lt;/sup&gt;"</span>
+        <span class="comment"># Group 1 = gene name (Kras)</span>
+        <span class="comment"># Group 2 = allele label (tm4Tyj)</span>
+        match = re.match(r<span class="string">"^(\w+)&lt;sup&gt;(.+?)&lt;/sup&gt;$"</span>, item)
+        <span class="keyword">if</span> match:
+            gene = match.group(<span class="number">1</span>)
+            allele_label = match.group(<span class="number">2</span>)
+            alleles.append((gene, f<span class="string">"{gene}&lt;{allele_label}&gt;"</span>, allele_label))
+    <span class="keyword">return</span> alleles</code></pre>
+
+<hr>
+
+<h2 id="step2"><span class="step-badge">STEP 2</span> Download MGI Bulk Reference Data</h2>
+
+<p>Three MGI tab-delimited report files provide orthology, disease annotations, and allele metadata.</p>
+
+<h3>2a. Mouse-to-human gene orthology</h3>
+
+<pre><code><span class="keyword">def</span> <span class="function">fetch_mgi_orthology</span>():
+    <span class="comment"># HOM_MouseHumanSequence.rpt contains rows for both mouse and human genes,</span>
+    <span class="comment"># linked by a shared "DB Class Key". Each ortholog pair shares the same key.</span>
+    r = requests.get(f<span class="string">"{MGI_REPORTS}/HOM_MouseHumanSequence.rpt"</span>)
+    <span class="comment"># ... parse into DataFrame ...</span>
+
+    <span class="comment"># Split into mouse and human subsets, then join on the shared class key</span>
+    mouse = df[df[<span class="string">"Common Organism Name"</span>] == <span class="string">"mouse, laboratory"</span>][[<span class="string">"DB Class Key"</span>, <span class="string">"Symbol"</span>]]
+    human = df[df[<span class="string">"Common Organism Name"</span>] == <span class="string">"human"</span>][[<span class="string">"DB Class Key"</span>, <span class="string">"Symbol"</span>]]
+    ortho = mouse.merge(human, on=<span class="string">"DB Class Key"</span>)
+
+    <span class="comment"># Build lookup: mouse gene (lowercase) &rarr; human gene symbol</span>
+    <span class="comment"># Example: "kras" &rarr; {"human_gene": "KRAS", "mgi_id": "MGI:96680"}</span>
+    <span class="comment"># Result: 20,181 ortholog pairs</span></code></pre>
+
+<h3>2b. Disease Ontology annotations (cancer filter)</h3>
+
+<pre><code><span class="keyword">def</span> <span class="function">fetch_mgi_disease_annotations</span>():
+    <span class="comment"># MGI_DO.rpt maps genes to Disease Ontology terms.</span>
+    <span class="comment"># Filter for cancer-related disease names using keyword matching.</span>
+
+    cancer_terms = [
+        <span class="string">"cancer"</span>, <span class="string">"carcinoma"</span>, <span class="string">"sarcoma"</span>, <span class="string">"lymphoma"</span>, <span class="string">"leukemia"</span>, <span class="string">"melanoma"</span>,
+        <span class="string">"glioma"</span>, <span class="string">"glioblastoma"</span>, <span class="string">"neuroblastoma"</span>, <span class="string">"blastoma"</span>, <span class="string">"mesothelioma"</span>,
+        <span class="string">"neoplasm"</span>, <span class="string">"tumor"</span>, <span class="string">"tumour"</span>, <span class="string">"myeloma"</span>, <span class="string">"adenoma"</span>, <span class="string">"adenocarcinoma"</span>,
+        <span class="string">"hepatoma"</span>, <span class="string">"medulloblastoma"</span>, <span class="string">"retinoblastoma"</span>, <span class="string">"rhabdomyosarcoma"</span>,
+        <span class="string">"osteosarcoma"</span>, <span class="string">"cholangiocarcinoma"</span>, <span class="string">"malignant"</span>,
+    ]
+
+    <span class="comment"># Case-insensitive regex OR of all terms, applied to "DO Disease Name" column</span>
+    <span class="comment"># Keep only mouse entries (the report also contains human rows)</span>
+    <span class="comment"># Result: 327 mouse genes with cancer disease annotations</span></code></pre>
+
+<h3>2c. Allele bulk metadata</h3>
+
+<pre><code><span class="keyword">def</span> <span class="function">fetch_mgi_allele_bulk</span>():
+    <span class="comment"># MGI_PhenotypicAllele.rpt — one row per allele. Key columns:</span>
+    <span class="comment">#   [0] MGI allele ID        (e.g., MGI:2429948)</span>
+    <span class="comment">#   [1] Allele symbol        (e.g., Kras&lt;tm4Tyj&gt;)</span>
+    <span class="comment">#   [2] Allele name          (e.g., "targeted mutation 4, Tyler Jacks")</span>
+    <span class="comment">#   [3] Allele type          (e.g., "Targeted")</span>
+    <span class="comment">#   [4] Allele attributes    (e.g., "Conditional ready|No functional change")</span>
+    <span class="comment">#   [7] Gene symbol          (e.g., Kras)</span>
+    <span class="comment">#</span>
+    <span class="comment"># The "attributes" field is critical for classifying alleles:</span>
+    <span class="comment">#   "Null/knockout"       &rarr; the allele is a knockout</span>
+    <span class="comment">#   "Conditional ready"   &rarr; floxed, requires Cre to activate</span>
+    <span class="comment">#   "Humanized sequence"  &rarr; carries human sequence</span>
+    <span class="comment"># Result: 129,000 allele records</span></code></pre>
+
+<hr>
+
+<h2 id="step3"><span class="step-badge">STEP 3</span> Query MGI Allele Pages for Specific Mutations</h2>
+
+<p>The bulk report tells us <em>what type</em> of allele it is (knockout, targeted, conditional) but not <em>which specific amino acid change</em> was engineered. That lives on individual MGI allele detail pages.</p>
+
+<p>For example, <code>Kras&lt;tm4Tyj&gt;</code> (MGI:2429948) has this on its detail page:</p>
+
+<blockquote><p><strong>Mutation details:</strong> Glycine codon 12 was changed to aspartic acid (p.G12D) to encode an oncogenic form of the KRAS2 protein. A loxP site flanked STOP cassette was included upstream&hellip;</p></blockquote>
+
+<pre><code><span class="keyword">def</span> <span class="function">fetch_mgi_mutation_details</span>(unique_alleles):
+    <span class="comment"># For each unique allele with an MGI ID, fetch its detail page</span>
+    <span class="comment"># and extract the "Mutation details" section via regex.</span>
+    <span class="keyword">for</span> allele_symbol, mgi_id <span class="keyword">in</span> alleles_needing_query:
+        r = requests.get(f<span class="string">"{MGI_ALLELE_PAGE}/{mgi_id}"</span>, timeout=<span class="number">15</span>)
+
+        <span class="comment"># The mutation details section sits between the "Mutation details" header</span>
+        <span class="comment"># and the next major section (phenotypes, disease models, etc.)</span>
+        match = re.search(
+            r<span class="string">"Mutation\s+details\s*:?\s*(?:&amp;nbsp;)?\s*(.*?)"</span>
+            r<span class="string">"(?:&lt;h\d|&lt;div\s+class=\"detailSection|&lt;section|id=\"phenoTable)"</span>,
+            r.text, re.DOTALL
+        )
+
+        <span class="keyword">if</span> match:
+            desc_clean = re.sub(r<span class="string">"&lt;[^&gt;]+&gt;"</span>, <span class="string">" "</span>, match.group(<span class="number">1</span>))  <span class="comment"># strip HTML</span>
+            mutations = parse_mutation_from_description(desc_clean)
+
+            <span class="comment"># If no point mutation found, check for knockout/conditional keywords</span>
+            is_knockout = <span class="keyword">any</span>(kw <span class="keyword">in</span> desc_lower <span class="keyword">for</span> kw <span class="keyword">in</span> [
+                <span class="string">"null allele"</span>, <span class="string">"disrupted"</span>, <span class="string">"replaced by neo"</span>, <span class="string">"deletion of"</span>
+            ]) <span class="keyword">and not</span> mutations
+
+        time.sleep(<span class="number">0.15</span>)  <span class="comment"># rate limit: ~7 requests/second</span>
+
+    <span class="comment"># 1,289 pages queried, 1,062 returned mutation descriptions, 0 errors</span></code></pre>
+
+<h4>Mutation parsing: four regex strategies</h4>
+
+<p>MGI describes mutations in varied formats. Four complementary strategies handle them:</p>
+
+<pre><code><span class="keyword">def</span> <span class="function">parse_mutation_from_description</span>(desc):
+    mutations = []
+
+    <span class="comment"># Strategy 1: HGVS protein notation</span>
+    <span class="comment"># Matches: "p.G12D", "p.V600E", "p.R172H"</span>
+    prot_matches = re.findall(r<span class="string">"p\.([A-Z])(\d+)([A-Z])"</span>, desc)
+
+    <span class="comment"># Strategy 2: Natural language with position</span>
+    <span class="comment"># Matches: "substitution of glutamic acid for valine at position 619"</span>
+    <span class="comment"># Uses an amino acid name &rarr; single-letter lookup table</span>
+    pos_matches = re.findall(
+        r<span class="string">"(?:substitution of )(\w+) (?:for )(\w+) at (?:position )(\d+)"</span>, desc)
+
+    <span class="comment"># Strategy 3: Codon change description</span>
+    <span class="comment"># Matches: "glycine codon 12 was changed to aspartic acid"</span>
+    codon_matches = re.findall(
+        r<span class="string">"(\w+) codon (\d+) was changed to (\w+)"</span>, desc)
+
+    <span class="comment"># Strategy 4: Standalone residue notation</span>
+    <span class="comment"># Matches: "V600E", "G12D", "R172H" as standalone tokens</span>
+    <span class="comment"># Filtered to positions &lt; 5000 to avoid false positives</span>
+    standalone = re.findall(r<span class="string">"\b([A-Z])(\d{2,4})([A-Z])\b"</span>, desc)
+
+    <span class="keyword">return</span> mutations <span class="keyword">if</span> mutations <span class="keyword">else</span> <span class="keyword">None</span></code></pre>
+
+<h4>Amino acid lookup table</h4>
+<table>
+<tr><th>Name</th><th>Letter</th><th>Name</th><th>Letter</th><th>Name</th><th>Letter</th></tr>
+<tr><td>glycine</td><td>G</td><td>alanine</td><td>A</td><td>valine</td><td>V</td></tr>
+<tr><td>leucine</td><td>L</td><td>isoleucine</td><td>I</td><td>proline</td><td>P</td></tr>
+<tr><td>phenylalanine</td><td>F</td><td>tryptophan</td><td>W</td><td>methionine</td><td>M</td></tr>
+<tr><td>serine</td><td>S</td><td>threonine</td><td>T</td><td>cysteine</td><td>C</td></tr>
+<tr><td>tyrosine</td><td>Y</td><td>histidine</td><td>H</td><td>lysine</td><td>K</td></tr>
+<tr><td>arginine</td><td>R</td><td>aspartic acid</td><td>D</td><td>glutamic acid</td><td>E</td></tr>
+<tr><td>asparagine</td><td>N</td><td>glutamine</td><td>Q</td><td></td><td></td></tr>
+</table>
+
+<hr>
+
+<h2 id="step4"><span class="step-badge">STEP 4</span> Assign Allele Labels &amp; Map to Human Equivalents</h2>
+
+<h3>4a. Mouse allele labeling</h3>
+
+<p>Each allele is assigned a human-readable label based on the resolved mutation:</p>
+
+<pre><code><span class="keyword">def</span> <span class="function">resolve_allele_label</span>(gene, allele_label, specific_mutations,
+                          is_knockout, is_conditional, bulk_class):
+
+    <span class="comment"># Priority 1: Specific point mutation found</span>
+    <span class="comment"># e.g. gene="Kras", mutations=["G12D"], conditional=True</span>
+    <span class="comment">#      &rarr; "Kras_G12D_conditional"</span>
+    <span class="keyword">if</span> specific_mutations:
+        muts = <span class="string">"_"</span>.join(specific_mutations)
+        <span class="keyword">return</span> f<span class="string">"{gene}_{muts}_conditional"</span> <span class="keyword">if</span> is_conditional <span class="keyword">else</span> f<span class="string">"{gene}_{muts}"</span>
+
+    <span class="comment"># Priority 2: Knockout</span>
+    <span class="comment"># e.g. gene="Trp53" &rarr; "Trp53_knockout"</span>
+    <span class="keyword">if</span> is_knockout <span class="keyword">or</span> bulk_class == <span class="string">"knockout"</span>:
+        <span class="keyword">return</span> f<span class="string">"{gene}_knockout"</span>
+
+    <span class="comment"># Priority 3: Conditional (no specific mutation)</span>
+    <span class="comment"># e.g. gene="Rb1" &rarr; "Rb1_conditional"</span>
+    <span class="keyword">if</span> bulk_class == <span class="string">"conditional"</span>:
+        <span class="keyword">return</span> f<span class="string">"{gene}_conditional"</span>
+
+    <span class="comment"># Priority 4: Other (gene trap, humanized)</span>
+    <span class="comment"># Priority 5: Fallback to raw allele label</span>
+    <span class="comment"># e.g. gene="Egfr", label="Wa5" &rarr; "Egfr_Wa5"</span>
+    <span class="keyword">return</span> f<span class="string">"{gene}_{allele_label}"</span></code></pre>
+
+<h3>4b. Mouse-to-human residue mapping</h3>
+
+<p>Some cancer hotspot mutations have different residue numbering between mouse and human proteins. A curated table handles known cases:</p>
+
+<table>
+<tr><th>Mouse allele</th><th>Human equivalent</th><th>Notes</th></tr>
+<tr><td>Trp53 R172H</td><td>TP53 R175H</td><td>Most common GOF hotspot</td></tr>
+<tr><td>Trp53 R270H</td><td>TP53 R273H</td><td>Contact mutant hotspot</td></tr>
+<tr><td>Trp53 R245W</td><td>TP53 R248W</td><td>Structural mutant hotspot</td></tr>
+<tr><td>Braf V619E</td><td>BRAF V600E</td><td>Numbering difference</td></tr>
+<tr><td>Fgfr3 K644E</td><td>FGFR3 K650E</td><td>Numbering difference</td></tr>
+<tr><td>Kit V558D</td><td>KIT V560D</td><td>Numbering difference</td></tr>
+<tr><td>Kit D814V</td><td>KIT D816V</td><td>Numbering difference</td></tr>
+<tr><td>Dnmt3a R878H</td><td>DNMT3A R882H</td><td>Numbering difference</td></tr>
+<tr><td>Ret C618R</td><td>RET C634R</td><td>Numbering difference</td></tr>
+</table>
+
+<p>For mutations where mouse and human residue positions are identical (e.g., KRAS G12D, PIK3CA H1047R, EGFR L858R), the notation carries over directly.</p>
+
+<pre><code><span class="keyword">def</span> <span class="function">resolve_human_allele</span>(gene, human_gene, specific_mutations, is_knockout, bulk_class):
+    <span class="keyword">if</span> specific_mutations:
+        <span class="comment"># Look up if mouse residue maps to a different human residue</span>
+        <span class="comment"># Example: Trp53 R172H &rarr; "TP53 R175H"</span>
+        <span class="keyword">return</span> f<span class="string">"{human_gene} {'/'.join(human_muts)}"</span>
+
+    <span class="keyword">if</span> is_knockout:
+        <span class="comment"># Example: Trp53 knockout &rarr; "TP53 loss-of-function"</span>
+        <span class="keyword">return</span> f<span class="string">"{human_gene} loss-of-function"</span>
+
+    <span class="keyword">if</span> bulk_class == <span class="string">"conditional"</span>:
+        <span class="keyword">return</span> f<span class="string">"{human_gene} conditional loss-of-function"</span></code></pre>
+
+<hr>
+
+<h2 id="step5"><span class="step-badge">STEP 5</span> Deduplicate to Unique Alleles</h2>
+
+<p>The 45,001 MMHCdb records are individual tumor observations &mdash; many strains appear multiple times with different tumor types. These are collapsed progressively:</p>
+
+<div style="text-align:center; margin: 1.5rem 0; font-size: 0.92rem;">
+<div style="background:var(--accent-light); display:inline-block; padding:0.5rem 1.2rem; border-radius:6px; margin-bottom:0.4rem;"><strong>45,001</strong> MMHCdb records (individual tumor frequency observations)</div>
+<div class="pipeline-arrow">&darr; group by allele symbol across all strains</div>
+<div style="background:var(--accent-light); display:inline-block; padding:0.5rem 1.2rem; border-radius:6px; margin-bottom:0.4rem;"><strong>1,368</strong> unique allele symbols</div>
+<div class="pipeline-arrow">&darr; resolve readable labels, merge duplicates</div>
+<div style="background:var(--accent-light); display:inline-block; padding:0.5rem 1.2rem; border-radius:6px;"><strong>1,101</strong> unique allele entries</div>
+</div>
+
+<p>During grouping, metadata is aggregated per allele:</p>
+<ul>
+<li>Tumor types, organs, human cancer sites &rarr; collected into sets (all unique values kept)</li>
+<li>Citations &rarr; first/primary publication retained</li>
+<li>GEMM strain count &rarr; number of distinct strains carrying this allele</li>
+</ul>
+
+<hr>
+
+<h2 id="step6"><span class="step-badge">STEP 6</span> Clean-Up Filters</h2>
+
+<p>The final clean spreadsheet applies these filters to go from 1,101 &rarr; 909 entries:</p>
+
+<h4>6a. Remove &ldquo;Other engineered&rdquo; alleles <span style="color:#6b7280">(175 removed)</span></h4>
+<p>Alleles with MGI records but no resolved specific mutation and no clear knockout/conditional classification. Typically reporter constructs or conditional-ready cassettes not yet activated.</p>
+<pre><code>df = df[df[<span class="string">'Allele Category'</span>] != <span class="string">'Other engineered'</span>]</code></pre>
+
+<h4>6b. Remove gene trap alleles <span style="color:#6b7280">(6 removed)</span></h4>
+<p>Random insertional mutations, not targeted cancer-modeling alleles.</p>
+<pre><code>df = df[df[<span class="string">'Allele Category'</span>] != <span class="string">'Gene trap'</span>]</code></pre>
+
+<h4>6c. Remove chemically induced / spontaneous alleles without molecular descriptions <span style="color:#6b7280">(10 removed)</span></h4>
+<p>Alleles where no mutation details were available in MGI. The 38 retained alleles all have defined molecular lesions (e.g., <code>Apc_Min</code> with its characterized T&rarr;A transversion).</p>
+<pre><code>mask = (
+    (df[<span class="string">'Allele Category'</span>] == <span class="string">'Spontaneous / chemically induced'</span>) &amp;
+    (df[<span class="string">'Molecular Description (MGI)'</span>].isna())
+)
+df = df[~mask]</code></pre>
+
+<h4>6d. One knockout per gene <span style="color:#6b7280">(0 additional removed &mdash; already unique)</span></h4>
+<p>If multiple knockout alleles existed for the same gene, keep the one used in the most GEMM strains.</p>
+<pre><code>ko = df[df[<span class="string">'Allele Category'</span>] == <span class="string">'Knockout / null'</span>]
+ko_dedup = ko.sort_values(<span class="string">'Number of GEMM Strains Using This Allele'</span>, ascending=<span class="keyword">False</span>) \
+              .drop_duplicates(subset=<span class="string">'Mouse Gene'</span>, keep=<span class="string">'first'</span>)</code></pre>
+
+<h4>6e. Clean duplicate residue annotations from point mutations <span style="color:#6b7280">(1 removed)</span></h4>
+<p>When the mutation description mentions both mouse and human residue positions (e.g., &ldquo;R172H&hellip;corresponding to human R175H&rdquo;), the parser may capture both. The human-equivalent residue is removed from the mouse label to avoid <code>Trp53_R172H_R175H</code> &mdash; producing <code>Trp53_R172H</code> instead.</p>
+
+<h4>6f. Column reduction</h4>
+<table>
+<tr><th>Kept (11 columns)</th><th>Dropped (6 columns)</th></tr>
+<tr><td>Mouse Gene</td><td>MGI Allele Symbol</td></tr>
+<tr><td>Mouse Mutant Allele</td><td>Allele Name</td></tr>
+<tr><td>Allele Category</td><td>Organs Affected in Mouse</td></tr>
+<tr><td>Corresponding Human Gene</td><td>Molecular Description (MGI)</td></tr>
+<tr><td>Human Mutant Allele</td><td>Example GEMM Strains</td></tr>
+<tr><td>Associated Cancer Types (Human)</td><td></td></tr>
+<tr><td>Tumor Types in Mouse</td><td></td></tr>
+<tr><td>Associated Human Diseases (DO)</td><td></td></tr>
+<tr><td>Database &amp; Accession</td><td></td></tr>
+<tr><td>Citation</td><td></td></tr>
+<tr><td>Number of GEMM Strains Using This Allele</td><td></td></tr>
+</table>
+
+<hr>
+
+<h2 id="output">Final Output Summary</h2>
+
+<p><strong>File:</strong> <code>GEMM_cancer_alleles_clean.xlsx</code></p>
+
+<div class="summary-box">
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Total unique alleles</td><td><strong>909</strong></td></tr>
+<tr><td>Unique mouse genes</td><td>759</td></tr>
+<tr><td>Unique human genes</td><td>743</td></tr>
+<tr><td>Entries with citations</td><td>909 (100%)</td></tr>
+</table>
+</div>
+
+<table>
+<tr><th>Allele Category</th><th>Count</th></tr>
+<tr><td>Knockout / null</td><td>614</td></tr>
+<tr><td>Conditional</td><td>168</td></tr>
+<tr><td>Point mutation / knock-in</td><td>76</td></tr>
+<tr><td>Spontaneous / chemically induced</td><td>38</td></tr>
+<tr><td>Humanized</td><td>13</td></tr>
+</table>
+
+<h3>Example entries</h3>
+<table>
+<tr><th>Mouse Mutant Allele</th><th>Human Mutant Allele</th><th>Category</th></tr>
+<tr><td><code>Kras_G12D_conditional</code></td><td>KRAS G12D</td><td>Point mutation / knock-in</td></tr>
+<tr><td><code>Kras_G12V_conditional</code></td><td>KRAS G12V</td><td>Point mutation / knock-in</td></tr>
+<tr><td><code>Braf_V600E_conditional</code></td><td>BRAF V600E</td><td>Point mutation / knock-in</td></tr>
+<tr><td><code>Trp53_R172H_conditional</code></td><td>TP53 R175H</td><td>Point mutation / knock-in</td></tr>
+<tr><td><code>Trp53_R270H_conditional</code></td><td>TP53 R273H</td><td>Point mutation / knock-in</td></tr>
+<tr><td><code>Trp53_knockout</code></td><td>TP53 loss-of-function</td><td>Knockout / null</td></tr>
+<tr><td><code>Pten_knockout</code></td><td>PTEN loss-of-function</td><td>Knockout / null</td></tr>
+<tr><td><code>Rb1_conditional</code></td><td>RB1 conditional loss-of-function</td><td>Conditional</td></tr>
+<tr><td><code>Apc_Min</code></td><td>APC (spontaneous)</td><td>Spontaneous</td></tr>
+</table>
+
+<hr>
+
+<h2 id="limitations">Limitations</h2>
+
+<ol>
+<li><strong>Mutation parsing is heuristic</strong> &mdash; amino acid changes are extracted from free-text molecular descriptions using regex. Complex or unusual descriptions may be missed.</li>
+<li><strong>Mouse-to-human residue mapping is curated, not exhaustive</strong> &mdash; only well-known cancer hotspot residue differences are covered. For less-studied genes, the mouse residue number is reported as-is.</li>
+<li><strong>GMMID not included</strong> &mdash; the GMMID database was offline during data collection.</li>
+<li><strong>Conditional alleles</strong> &mdash; some conditional-ready alleles appear as &ldquo;conditional loss-of-function&rdquo; but may produce different phenotypes depending on the Cre driver used.</li>
+<li><strong>MMHCdb coverage</strong> &mdash; expertly curated but may not include every published GEMM, particularly very recent or non-English literature models.</li>
+</ol>
+
+</body>
+</html>
